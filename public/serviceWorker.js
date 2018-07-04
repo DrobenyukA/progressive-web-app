@@ -12,5 +12,5 @@ self.addEventListener('fetch', function(event) {
      * This will work onl for browser fetching or fetch function.
      * NOTE: standard XmlHttpRequest will NOT trigger this event!
      */
-    console.log('[SW] Fetching... ', event);
+    // console.log('[SW] Fetching... ', event);
 });
