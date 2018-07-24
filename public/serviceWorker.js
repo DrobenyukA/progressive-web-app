@@ -1,4 +1,4 @@
-const VERSION = '1';
+const VERSION = '9';
 self.addEventListener('install', function(event) {
    console.log('[SW] Installation complete! ', event);
     /**
@@ -11,6 +11,7 @@ self.addEventListener('install', function(event) {
                 cache.addAll([
                     '/',
                     '/index.html',
+                    '/offline.html',
                     '/src/js/app.js',
                     '/src/js/feed.js',
                     '/src/js/material.min.js',
@@ -64,6 +65,10 @@ self.addEventListener('fetch', function(event) {
             })
             .catch(function(error) {
                 console.log('[SW] Failed to cache!', error);
+                // TODO: update this to avoid inconvenience with 404 state
+                return caches.open('static-' + VERSION).then(function(cache){
+                    return cache.match('/offline.html');
+                })
             })
     );
 });
