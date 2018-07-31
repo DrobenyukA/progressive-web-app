@@ -1,35 +1,53 @@
-const VERSION = '9';
-self.addEventListener('install', function(event) {
-   console.log('[SW] Installation complete! ', event);
-    /**
-     * Cache main static assets during installation
-     */
-    event.waitUntil(
-        caches.open('static-' + VERSION)
-            .then(function(cache) {
-                console.log('[SW] Caching app shell');
-                cache.addAll([
-                    '/',
-                    '/index.html',
-                    '/offline.html',
-                    '/src/js/app.js',
-                    '/src/js/feed.js',
-                    '/src/js/material.min.js',
-                    '/src/css/app.css',
-                    '/src/css/feed.css',
-                    '/src/css/help.css',
-                    '/src/images/main-image.jpg',
-                    '/src/images/main-image-lg.jpg',
-                    '/src/images/main-image-sm.jpg',
-                    'https://cdnjs.cloudflare.com/ajax/libs/material-design-lite/1.3.0/material.indigo-pink.min.css',
-                    'https://fonts.googleapis.com/css?family=Roboto:400,700',
-                    'https://fonts.googleapis.com/icon?family=Material+Icons'
-                ]);
-            })
-    );
-});
+const VERSION = '6';
+const STATIC_CACHE = 'STATIC_v-' + VERSION;
+const DYNAMIC_CACHE = 'DYNAMIC_v-' + VERSION;
+const STATIC_FILES = [
+    '/',
+    '/index.html',
+    '/offline.html',
+    '/src/js/app.js',
+    '/src/js/feed.js',
+    '/src/js/material.min.js',
+    '/src/css/app.css',
+    '/src/css/feed.css',
+    '/src/css/help.css',
+    '/src/images/main-image.jpg',
+    '/src/images/main-image-lg.jpg',
+    '/src/images/main-image-sm.jpg',
+    'https://cdnjs.cloudflare.com/ajax/libs/material-design-lite/1.3.0/material.indigo-pink.min.css',
+    'https://fonts.googleapis.com/css?family=Roboto:400,700',
+    'https://fonts.googleapis.com/icon?family=Material+Icons'
+];
 
-self.addEventListener('activate', function(event) {
+function trimCacheStrategy(cache, keys) {
+    const MAX_STORE_ELEMENTS = 10;
+    if (keys.length > MAX_STORE_ELEMENTS) {
+        return cache.delete(keys[0]).then(trimCache);
+    }
+}
+
+function trimCache() {
+    caches.open(DYNAMIC_CACHE).then(function (cache) {
+        return cache.keys().then(function (keys) {
+            return trimCacheStrategy(cache, keys)
+        })
+    })
+}
+
+function handleError(message, error){
+    console.log('[SW] Error: ' + message, error);
+}
+
+function isStaticFile(url){
+    let cachePath = url;
+    if (url.indexOf(self.origin) === 0) {
+        // request targets domain where we serve the page from (i.e. NOT a CDN)
+        cachePath = url.substring(self.origin.length);
+    }
+    return STATIC_FILES.indexOf(cachePath) > -1;
+}
+
+function activateServiceWorker(event) {
     console.log('[SW] Activation complete! ', event);
     event.waitUntil(
         caches.keys().then(function(keyList) {
@@ -41,34 +59,100 @@ self.addEventListener('activate', function(event) {
                 }
             }))
         })
-    )
+    );
     return self.clients.claim();
-});
+}
 
-self.addEventListener('fetch', function(event) {
+function installServiceWorker(event) {
+    console.log('[SW] Installation complete! ', event);
+    /**
+     * Cache main static assets during installation
+     */
+    event.waitUntil(
+        caches.open(STATIC_CACHE)
+            .then(function(cache) {
+                console.log('[SW] Caching app shell');
+                cache.addAll(STATIC_FILES);
+            })
+    );
+}
+
+function dynamicCacheHandler(event, response) {
+    return caches.open(DYNAMIC_CACHE)
+        .then(function (cache) {
+            cache.put(event.request.url, response.clone());
+            return response;
+        })
+}
+
+function networkFirstStrategy(event) {
+    return event.respondWith(
+        fetch(event.request)
+            .then(function(resp) {
+                return dynamicCacheHandler(event, resp)
+            })
+            .catch(error => caches.match(event.request))
+    )
+}
+
+function cacheFirstStrategy(event) {
     /**
      * This will work onl for browser fetching or fetch function.
      * NOTE: standard XmlHttpRequest will NOT trigger this event!
      */
-    // console.log('[SW] Fetching... ', event);
     event.respondWith(
         caches.match(event.request)
             .then(function(response) {
                 return response ? response : fetch(event.request).then(function (resp) {
-                    return caches.open('dynamic-' + VERSION).then(function(cache) {
-                        cache.put(event.request.url, resp.clone());
-                        return resp;
-                    }).catch(function(error){
-                        console.log('[SW] You are offline!', error);
+                    return dynamicCacheHandler(event, resp).catch(function(error){
+                        handleError('You are offline!', error);
                     })
                 });
             })
             .catch(function(error) {
                 console.log('[SW] Failed to cache!', error);
-                // TODO: update this to avoid inconvenience with 404 state
-                return caches.open('static-' + VERSION).then(function(cache){
-                    return cache.match('/offline.html');
+                return caches.open(STATIC_CACHE).then(function(cache){
+                    // Return dummy page only in case that user requested a page some other files
+                    if (event.request.headers.get('accept').includes('text/html')) {
+                        // TODO: update this to avoid inconvenience with 404 state
+                        return cache.match('/offline.html');
+                    }
                 })
             })
     );
+}
+
+function cacheThanNetworkStrategy(event) {
+    event.respondWith(
+        caches.open(DYNAMIC_CACHE).then(function(cache) {
+            return fetch(event.request).then(function(response) {
+                cache.put(event.request, response.clone());
+                return response;
+            })
+        })
+    )
+}
+
+function cacheOnlyStrategy(event) {
+    event.respondWith(
+        caches.match(event.request)
+    )
+}
+
+self.addEventListener('install', installServiceWorker);
+
+self.addEventListener('activate', activateServiceWorker);
+
+self.addEventListener('fetch', function (event) {
+    const url = 'https://httpbin.org/get';
+    trimCache();
+    if (event.request.url.indexOf(url) > -1){
+        return cacheThanNetworkStrategy(event);
+    } else if (isStaticFile(event.request.url)) {
+        return cacheOnlyStrategy(event);
+    } else {
+        return cacheFirstStrategy(event);
+    }
 });
+
+

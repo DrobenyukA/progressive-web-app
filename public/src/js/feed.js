@@ -3,6 +3,12 @@ const createPostArea = document.querySelector('#create-post');
 const closeCreatePostModalButton = document.querySelector('#close-create-post-modal-btn');
 const sharedMomentsArea = document.querySelector('#shared-moments');
 
+let networkDataReceived = false;
+
+function errorHandler(error){
+    console.log('[Page] ERROR:', error);
+}
+
 function openCreatePostModal() {
   createPostArea.style.display = 'block';
   if (deferredPrompt) {
@@ -25,11 +31,25 @@ function openCreatePostModal() {
   }
 }
 
+function getDataFromCache(url) {
+    if ('caches' in window) {
+        return caches.match(url)
+    }
+    const errorMessage = 'Your browser doesn`t support caches';
+    return new Promise(function(resolve, reject) { return reject({message: errorMessage}) });
+}
+
 function closeCreatePostModal() {
   createPostArea.style.display = 'none';
 }
 
-function createCard() {
+function removeCards() {
+    while(sharedMomentsArea.hasChildNodes()) {
+        sharedMomentsArea.removeChild(sharedMomentsArea.lastChild);
+    }
+}
+
+function createCard(name) {
     const cardWrapper = document.createElement('div');
     cardWrapper.className = 'shared-moment-card mdl-card mdl-shadow--2dp';
 
@@ -47,7 +67,7 @@ function createCard() {
 
     const cardSupportingText = document.createElement('div');
     cardSupportingText.className = 'mdl-card__supporting-text';
-    cardSupportingText.textContent = 'In San Francisco';
+    cardSupportingText.textContent = name || 'In San Francisco';
     cardSupportingText.style.textAlign = 'center';
     cardWrapper.appendChild(cardSupportingText);
     componentHandler.upgradeElement(cardWrapper);
@@ -59,9 +79,31 @@ shareImageButton.addEventListener('click', openCreatePostModal);
 closeCreatePostModalButton.addEventListener('click', closeCreatePostModal);
 
 fetch('https://httpbin.org/get')
-    .then(function(res) {
-        return res.json();
+    .then(function(resp){
+        return resp.json();
     })
     .then(function(data) {
-        createCard();
-    });
+        networkDataReceived = true;
+        console.log('From web', data);
+        removeCards();
+        createCard('From web');
+    })
+    .catch(errorHandler);
+
+// getDataFromCache('https://httpbin.org/get')
+//     .then(function(resp){
+//         return resp.json();
+//     })
+//     .then(function(data){
+//         if (networDataReceived){
+//             return false;
+//         } else {
+//             console.log('From cache', data);
+//             removeCards();
+//             createCard('From cache');
+//         }
+//
+//     })
+//     .catch(errorHandler);
+
+

@@ -1,5 +1,15 @@
 var deferredPrompt;
 
+function unregisterServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (registrations) {
+            for(let i = 0; i >= registrations.length; i++) {
+                registrations[i].unregister();
+            }
+        })
+    }
+}
+
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/serviceWorker.js')
         .then(function(event) {
