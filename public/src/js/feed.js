@@ -49,25 +49,25 @@ function removeCards() {
     }
 }
 
-function createCard(name) {
+function createCard(item) {
     const cardWrapper = document.createElement('div');
     cardWrapper.className = 'shared-moment-card mdl-card mdl-shadow--2dp';
 
     const cardTitle = document.createElement('div');
     cardTitle.className = 'mdl-card__title';
-    cardTitle.style.backgroundImage = 'url("/src/images/sf-boat.jpg")';
+    cardTitle.style.backgroundImage = 'url("' + item.image + '")';
     cardTitle.style.backgroundSize = 'cover';
     cardTitle.style.height = '180px';
     cardWrapper.appendChild(cardTitle);
 
     const cardTitleTextElement = document.createElement('h2');
     cardTitleTextElement.className = 'mdl-card__title-text';
-    cardTitleTextElement.textContent = 'San Francisco Trip';
+    cardTitleTextElement.textContent = item.title;
     cardTitle.appendChild(cardTitleTextElement);
 
     const cardSupportingText = document.createElement('div');
     cardSupportingText.className = 'mdl-card__supporting-text';
-    cardSupportingText.textContent = name || 'In San Francisco';
+    cardSupportingText.textContent = item.location;
     cardSupportingText.style.textAlign = 'center';
     cardWrapper.appendChild(cardSupportingText);
     componentHandler.upgradeElement(cardWrapper);
@@ -78,18 +78,27 @@ shareImageButton.addEventListener('click', openCreatePostModal);
 
 closeCreatePostModalButton.addEventListener('click', closeCreatePostModal);
 
-fetch('https://httpbin.org/get')
+fetch('https://my-pwagram.firebaseio.com/posts.json')
     .then(function(resp){
         return resp.json();
     })
+    .then(results => Object.keys(results).map(keyName => results[keyName]))
     .then(function(data) {
-        networkDataReceived = true;
-        console.log('From web', data);
+        console.log('response: ', data);
         removeCards();
-        createCard('From web');
+        [].forEach.call(data, (item) => createCard(item));
+
     })
     .catch(errorHandler);
 
+if ('indexedDB' in window) {
+    readAll('posts').then(function(data) {
+        if (!networkDataReceived) {
+            console.log('FROM DB', data);
+            [].forEach.call(data, (item) => createCard(item));
+        }
+    })
+}
 // getDataFromCache('https://httpbin.org/get')
 //     .then(function(resp){
 //         return resp.json();
