@@ -1,13 +1,17 @@
-const VERSION = '6';
+importScripts('/src/js/idb.js');
+importScripts('/src/js/dataBase.js');
+
+const VERSION = '13';
 const STATIC_CACHE = 'STATIC_v-' + VERSION;
 const DYNAMIC_CACHE = 'DYNAMIC_v-' + VERSION;
 const STATIC_FILES = [
     '/',
     '/index.html',
     '/offline.html',
+    '/src/js/material.min.js',
+    '/src/js/idb.js',
     '/src/js/app.js',
     '/src/js/feed.js',
-    '/src/js/material.min.js',
     '/src/css/app.css',
     '/src/css/feed.css',
     '/src/css/help.css',
@@ -139,15 +143,33 @@ function cacheOnlyStrategy(event) {
     )
 }
 
+function storePost(post) {
+    return removeAllData('posts').then(function() {
+        return writeData('posts', post);
+    });
+
+}
+
+function indexedDBStrategy(event){
+    return event.respondWith(fetch(event.request).then(function(response) {
+        const responseCopy = response.clone();
+        responseCopy.json().then(function(data) {
+            Object.keys(data).forEach(keyName => storePost(data[keyName]));
+        });
+        return response;
+    }))
+}
+
 self.addEventListener('install', installServiceWorker);
 
 self.addEventListener('activate', activateServiceWorker);
 
 self.addEventListener('fetch', function (event) {
-    const url = 'https://httpbin.org/get';
+    const url = 'https://my-pwagram.firebaseio.com/posts.json';
     trimCache();
     if (event.request.url.indexOf(url) > -1){
-        return cacheThanNetworkStrategy(event);
+        return indexedDBStrategy(event);
+        // return cacheThanNetworkStrategy(event);
     } else if (isStaticFile(event.request.url)) {
         return cacheOnlyStrategy(event);
     } else {
