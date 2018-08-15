@@ -1,7 +1,7 @@
 importScripts('/src/js/idb.js');
 importScripts('/src/js/dataBase.js');
 
-const VERSION = '13';
+const VERSION = '14';
 const STATIC_CACHE = 'STATIC_v-' + VERSION;
 const DYNAMIC_CACHE = 'DYNAMIC_v-' + VERSION;
 const STATIC_FILES = [
