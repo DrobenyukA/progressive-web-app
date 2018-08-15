@@ -10,8 +10,10 @@ function errorHandler(error){
 }
 
 function openCreatePostModal() {
-  createPostArea.style.display = 'block';
-  if (deferredPrompt) {
+
+    createPostArea.style.transform = 'translateY(0)';
+
+    if (deferredPrompt) {
       /**
        * Show user prompt with suggestion to add our app to home screen
        */
@@ -40,7 +42,7 @@ function getDataFromCache(url) {
 }
 
 function closeCreatePostModal() {
-  createPostArea.style.display = 'none';
+    createPostArea.style.transform = 'translateY(100vh)';
 }
 
 function removeCards() {
