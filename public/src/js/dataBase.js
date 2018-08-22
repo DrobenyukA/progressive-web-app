@@ -1,14 +1,16 @@
 const DB_VERSION = '1';
 const DB_NAME = 'pwaGRamDB';
 const POSTS_TABLE = 'posts';
+const SYNC_POSTS = 'sync-posts';
 
 const dbPromise = idb.open(DB_NAME, DB_VERSION, function (db) {
     createStoreIfNotExists(POSTS_TABLE, {keyPath: 'id'}, db);
+    createStoreIfNotExists(SYNC_POSTS, {keyPath: 'syncId'}, db);
 });
 
 function createStoreIfNotExists(name, options, db) {
     if (!db.objectStoreNames.contains(name)) {
-        db.createObjectStore('posts', {keyPath: 'id'});
+        db.createObjectStore(name, options);
     }
 }
 

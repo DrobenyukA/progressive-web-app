@@ -1,7 +1,7 @@
 importScripts('/src/js/idb.js');
 importScripts('/src/js/dataBase.js');
 
-const VERSION = '14';
+const VERSION = '46';
 const STATIC_CACHE = 'STATIC_v-' + VERSION;
 const DYNAMIC_CACHE = 'DYNAMIC_v-' + VERSION;
 const STATIC_FILES = [
@@ -145,7 +145,10 @@ function cacheOnlyStrategy(event) {
 
 function storePost(post) {
     return removeAllData('posts').then(function() {
+        console.log('Post to store:', post);
         return writeData('posts', post);
+    }).catch(function (error) {
+        console.log('[SW] Failed to store post', error);
     });
 
 }
@@ -154,10 +157,108 @@ function indexedDBStrategy(event){
     return event.respondWith(fetch(event.request).then(function(response) {
         const responseCopy = response.clone();
         responseCopy.json().then(function(data) {
-            Object.keys(data).forEach(keyName => storePost(data[keyName]));
+            Object.keys(data).forEach(keyName => storePost({
+                id: keyName,
+                image: data[keyName].image,
+                location: data[keyName].location,
+                title: data[keyName].title
+            }));
         });
         return response;
     }))
+}
+
+function sendPost(post) {
+    console.log('[SW] Post to send: ', post);
+    return fetch('https://us-central1-my-pwagram.cloudfunctions.net/storePostData', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify(post),
+    }).then(function (resp) {
+        console.log('[SW] Sync. Post saved: ', resp);
+        if(resp.ok) {
+            resp.json().then(function (resp) {
+                console.log('Delete post id: ', resp.id);
+                removeItem('sync-posts', resp.id);
+            });
+        }
+    }).catch(function (err) {
+        console.log('[SW] Sync. Failed to save post: ', err);
+    });
+}
+
+function sendStoredPosts(event) {
+    console.log('[SW] store-new-post');
+    return event.waitUntil(
+        readAll('sync-posts').then(function (posts) {
+            console.log('[SW] Posts to sync: ', posts);
+            if (posts.length) {
+                return [].forEach.call(posts, sendPost);
+            } else {
+                return sendPost(posts);
+            }
+
+        })
+    )
+}
+
+
+function handleConfirmAction(notification) {
+    console.log('[SW] You have successfully confirmed this action.');
+    notification.close();
+}
+
+function goToAppPage(notification) {
+    clients.matchAll()
+        .then(openedTabs => openedTabs.find(tab => tab.visibilityState === 'visible'))
+        .then(visibleTab => {
+            if (visibleTab === undefined) {
+                clients.openWindow(notification.data.url);
+            } else {
+                visibleTab.navigate(notification.data.url);
+                visibleTab.focus();
+            }
+            notification.close();
+        });
+}
+
+function handleNotificationClick (event) {
+    const notification = event.notification;
+    const action = event.action;
+
+    console.log('[SW] Notification: ', notification);
+
+    switch(action) {
+        case 'confirm': return handleConfirmAction(notification);
+        default: return event.waitUntil(goToAppPage(notification))
+    }
+
+}
+
+function handleNotificationClose(event) {
+    console.log('[SW] Notification closed!', event.notification);
+}
+
+function handlePushMessage(event) {
+    console.log('[SW] Message received:', event);
+    let data = { title: 'Hi', content: 'Something happened', openUrl: '/' };
+    if (event.data) {
+        data = JSON.parse(event.data.text())
+    }
+    const options = {
+        body: data.content,
+        icon: '/src/images/icons/app-icon-48x48.png',
+        badge: '/src/images/icons/app-icon-48x48.png',
+        data: {
+            url: data.openUrl,
+        }
+    }
+    event.waitUntil(
+        self.registration.showNotification(data.title, options),
+    )
 }
 
 self.addEventListener('install', installServiceWorker);
@@ -177,4 +278,16 @@ self.addEventListener('fetch', function (event) {
     }
 });
 
+self.addEventListener('sync', function (event) {
+    console.log('[SW] Background sync: ', event);
+    switch (event.tag) {
+        case 'store-new-post': return sendStoredPosts(event);
+        default: return console.log('[SW] There is no correct handler for tag: ', event.tag);
+    }
+});
 
+self.addEventListener('notificationclick', handleNotificationClick);
+
+self.addEventListener('notificationclose', handleNotificationClose);
+
+self.addEventListener('push', handlePushMessage)

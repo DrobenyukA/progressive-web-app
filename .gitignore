@@ -2,4 +2,6 @@
 .idea/
 node_modules/
 functions/node_modules/
-config.json
+functions/sdkConfig.json
+functions/secret.json
+**/**/*.log
