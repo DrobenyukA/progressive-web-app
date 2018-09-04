@@ -1,7 +1,7 @@
 importScripts('/src/js/idb.js');
 importScripts('/src/js/dataBase.js');
 
-const VERSION = '14';
+const VERSION = '27';
 const STATIC_CACHE = 'STATIC_v-' + VERSION;
 const DYNAMIC_CACHE = 'DYNAMIC_v-' + VERSION;
 const STATIC_FILES = [
@@ -145,7 +145,10 @@ function cacheOnlyStrategy(event) {
 
 function storePost(post) {
     return removeAllData('posts').then(function() {
+        console.log('Post to store:', post);
         return writeData('posts', post);
+    }).catch(function (error) {
+        console.log('[SW] Failed to store post', error);
     });
 
 }
@@ -158,6 +161,43 @@ function indexedDBStrategy(event){
         });
         return response;
     }))
+}
+
+function sendPost(post) {
+    console.log('[SW] Post to send: ', post);
+    return fetch('https://us-central1-my-pwagram.cloudfunctions.net/storePostData', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify(post),
+    }).then(function (resp) {
+        console.log('[SW] Sync. Post saved: ', resp);
+        if(resp.ok) {
+            resp.json().then(function (resp) {
+                console.log('Delete post id: ', resp.id);
+                removeItem('sync-posts', resp.id);
+            });
+        }
+    }).catch(function (err) {
+        console.log('[SW] Sync. Failed to save post: ', err);
+    });
+}
+
+function sendStoredPosts(event) {
+    console.log('[SW] store-new-post');
+    return event.waitUntil(
+        readAll('sync-posts').then(function (posts) {
+            console.log('[SW] Posts to sync: ', posts);
+            if (posts.length) {
+                return [].forEach.call(posts, sendPost);
+            } else {
+                return sendPost(posts);
+            }
+
+        })
+    )
 }
 
 self.addEventListener('install', installServiceWorker);
@@ -177,4 +217,11 @@ self.addEventListener('fetch', function (event) {
     }
 });
 
+self.addEventListener('sync', function (event) {
+    console.log('[SW] Background sync: ', event);
+    switch (event.tag) {
+        case 'store-new-post': return sendStoredPosts(event);
+        default: return console.log('[SW] There is no correct handler for tag: ', event.tag);
+    }
+});
 
