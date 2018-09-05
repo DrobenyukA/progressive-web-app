@@ -145,7 +145,12 @@ fetch('https://my-pwagram.firebaseio.com/posts.json')
     .then(function(resp){
         return resp.json();
     })
-    .then(results => Object.keys(results).map(keyName => results[keyName]))
+    .then(results => Object.keys(results).map(keyName => ({
+        id: keyName,
+        image: results[keyName].image,
+        location: results[keyName].location,
+        title: results[keyName].title
+    })))
     .then(function(data) {
         console.log('response: ', data);
         removeCards();

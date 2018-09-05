@@ -1,7 +1,7 @@
 importScripts('/src/js/idb.js');
 importScripts('/src/js/dataBase.js');
 
-const VERSION = '27';
+const VERSION = '31';
 const STATIC_CACHE = 'STATIC_v-' + VERSION;
 const DYNAMIC_CACHE = 'DYNAMIC_v-' + VERSION;
 const STATIC_FILES = [
@@ -157,7 +157,12 @@ function indexedDBStrategy(event){
     return event.respondWith(fetch(event.request).then(function(response) {
         const responseCopy = response.clone();
         responseCopy.json().then(function(data) {
-            Object.keys(data).forEach(keyName => storePost(data[keyName]));
+            Object.keys(data).forEach(keyName => storePost({
+                id: keyName,
+                image: data[keyName].image,
+                location: data[keyName].location,
+                title: data[keyName].title
+            }));
         });
         return response;
     }))
