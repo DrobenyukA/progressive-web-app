@@ -1,7 +1,7 @@
 importScripts('/src/js/idb.js');
 importScripts('/src/js/dataBase.js');
 
-const VERSION = '31';
+const VERSION = '46';
 const STATIC_CACHE = 'STATIC_v-' + VERSION;
 const DYNAMIC_CACHE = 'DYNAMIC_v-' + VERSION;
 const STATIC_FILES = [
@@ -205,6 +205,62 @@ function sendStoredPosts(event) {
     )
 }
 
+
+function handleConfirmAction(notification) {
+    console.log('[SW] You have successfully confirmed this action.');
+    notification.close();
+}
+
+function goToAppPage(notification) {
+    clients.matchAll()
+        .then(openedTabs => openedTabs.find(tab => tab.visibilityState === 'visible'))
+        .then(visibleTab => {
+            if (visibleTab === undefined) {
+                clients.openWindow(notification.data.url);
+            } else {
+                visibleTab.navigate(notification.data.url);
+                visibleTab.focus();
+            }
+            notification.close();
+        });
+}
+
+function handleNotificationClick (event) {
+    const notification = event.notification;
+    const action = event.action;
+
+    console.log('[SW] Notification: ', notification);
+
+    switch(action) {
+        case 'confirm': return handleConfirmAction(notification);
+        default: return event.waitUntil(goToAppPage(notification))
+    }
+
+}
+
+function handleNotificationClose(event) {
+    console.log('[SW] Notification closed!', event.notification);
+}
+
+function handlePushMessage(event) {
+    console.log('[SW] Message received:', event);
+    let data = { title: 'Hi', content: 'Something happened', openUrl: '/' };
+    if (event.data) {
+        data = JSON.parse(event.data.text())
+    }
+    const options = {
+        body: data.content,
+        icon: '/src/images/icons/app-icon-48x48.png',
+        badge: '/src/images/icons/app-icon-48x48.png',
+        data: {
+            url: data.openUrl,
+        }
+    }
+    event.waitUntil(
+        self.registration.showNotification(data.title, options),
+    )
+}
+
 self.addEventListener('install', installServiceWorker);
 
 self.addEventListener('activate', activateServiceWorker);
@@ -230,3 +286,8 @@ self.addEventListener('sync', function (event) {
     }
 });
 
+self.addEventListener('notificationclick', handleNotificationClick);
+
+self.addEventListener('notificationclose', handleNotificationClose);
+
+self.addEventListener('push', handlePushMessage)
