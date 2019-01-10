@@ -19,8 +19,8 @@ exports.storePostData = functions.https.onRequest((req, res) => {
             .then(() => {
                 webPush.setVapidDetails(
                     'mailto:andriy.drobenyuk@gmail.com',
-                    'BPwh4ZAP3RaLN1bpxMP9s9k97y6UgiSCf56sxmNK-R4CC_jJI0SUi04e96Af1U4edoyGIlWMmTm9b9tG2VoMmd0', // config.public, // TODO: replace these values onto hidden constants
-                    'F_DEUlAcO9g98rpdKh5oqvzTeE8mHEUxy4i1AVyMumw' // config.private // TODO: replace these values onto hidden constants
+                    config.public, // config.public, // TODO: replace these values onto hidden constants
+                    config.private // config.private // TODO: replace these values onto hidden constants
                 );
                 return admin.database().ref('subscriptions').once('value');
             })
