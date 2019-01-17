@@ -1,7 +1,7 @@
 importScripts('/src/js/idb.js');
 importScripts('/src/js/dataBase.js');
 
-const VERSION = '46';
+const VERSION = '72';
 const STATIC_CACHE = 'STATIC_v-' + VERSION;
 const DYNAMIC_CACHE = 'DYNAMIC_v-' + VERSION;
 const STATIC_FILES = [
@@ -12,6 +12,7 @@ const STATIC_FILES = [
     '/src/js/idb.js',
     '/src/js/app.js',
     '/src/js/feed.js',
+    '/src/js/utils.js',
     '/src/css/app.css',
     '/src/css/feed.css',
     '/src/css/help.css',
@@ -144,10 +145,11 @@ function cacheOnlyStrategy(event) {
 }
 
 function storePost(post) {
-    return removeAllData('posts').then(function() {
-        console.log('Post to store:', post);
+    return removeAllData('posts')
+    .then(() => {
+        console.log('[SW] Post to store:', post);
         return writeData('posts', post);
-    }).catch(function (error) {
+    }).catch(error => {
         console.log('[SW] Failed to store post', error);
     });
 
@@ -156,13 +158,16 @@ function storePost(post) {
 function indexedDBStrategy(event){
     return event.respondWith(fetch(event.request).then(function(response) {
         const responseCopy = response.clone();
-        responseCopy.json().then(function(data) {
-            Object.keys(data).forEach(keyName => storePost({
-                id: keyName,
-                image: data[keyName].image,
-                location: data[keyName].location,
-                title: data[keyName].title
-            }));
+        responseCopy.json().then(data => {
+            console.log('Some data', data);
+            if (data) {
+                Object.keys(data).forEach(keyName => storePost({
+                    id: keyName,
+                    picture: data[keyName].picture,
+                    location: data[keyName].location,
+                    title: data[keyName].title
+                }));
+            }
         });
         return response;
     }))
@@ -170,14 +175,24 @@ function indexedDBStrategy(event){
 
 function sendPost(post) {
     console.log('[SW] Post to send: ', post);
+    const data = new FormData();
+    // Object.keys(post).forEach(key => {
+    //     if (key === 'picture') {
+    //         data.append('file', post.picture, post.syncId + '.png');
+    //     }
+    //     data.append(key, post[key]);
+    // });
+    data.append('syncId', post.syncId);
+    data.append('title', post.title);
+    data.append('location', post.location);
+    data.append('file', post.picture, post.syncId + '.png');
+
+    // TODO: rename post.image onto post.file
+    // TODO: find out how to set correct mime type
     return fetch('https://us-central1-my-pwagram.cloudfunctions.net/storePostData', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-        },
-        body: JSON.stringify(post),
-    }).then(function (resp) {
+        body: data,
+    }).then(resp => {
         console.log('[SW] Sync. Post saved: ', resp);
         if(resp.ok) {
             resp.json().then(function (resp) {
@@ -190,7 +205,7 @@ function sendPost(post) {
     });
 }
 
-function sendStoredPosts(event) {
+function uploadStoredPosts(event) {
     console.log('[SW] store-new-post');
     return event.waitUntil(
         readAll('sync-posts').then(function (posts) {
@@ -278,10 +293,10 @@ self.addEventListener('fetch', function (event) {
     }
 });
 
-self.addEventListener('sync', function (event) {
+self.addEventListener('sync', (event) => {
     console.log('[SW] Background sync: ', event);
     switch (event.tag) {
-        case 'store-new-post': return sendStoredPosts(event);
+        case 'store-new-post': return uploadStoredPosts(event);
         default: return console.log('[SW] There is no correct handler for tag: ', event.tag);
     }
 });
