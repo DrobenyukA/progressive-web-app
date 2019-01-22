@@ -1,3 +1,4 @@
+const MY_API_KEY = undefined;
 const shareImageButton = document.querySelector('#share-image-button');
 const createPostArea = document.querySelector('#create-post');
 const closeCreatePostModalButton = document.querySelector('#close-create-post-modal-btn');
@@ -9,9 +10,14 @@ const imagePreview = document.querySelector('#canvas'); // old canvas
 const captureBtn = document.querySelector('#capture-btn');
 const imagePicker = document.querySelector('#image-picker');
 const imageContainer = document.querySelector('#pick-image');
+const locationInput = document.querySelector('#location');
+const titleInput = document.querySelector('#title');
+const locationBtn = document.querySelector('#location-btn');
+const locationLoader = document.querySelector('#location-loader');
 
 let networkDataReceived = false;
 let pictureBlob;
+let position;
 
 function errorHandler(error) {
     console.log('[Page] ERROR:', error);
@@ -70,15 +76,24 @@ function initializeMediaPicker() {
             videoPlayer.srcObject = stream;
             videoPlayer.style.display = 'block';
         })
-        .catch((err) => {
+        .catch((error) => {
+            console.log(error, error.message);
             imageContainer.style.display = 'block';
+            captureBtn.style.display = 'none';
         })
+}
+
+function initializeLocationPicker() {
+    if (!('geolocation' in navigator)) {
+        locationBtn.style.display = 'none';
+    }
 }
 
 function openCreatePostModal() {
     captureBtn.style.display = 'inline-block';
     createPostArea.style.transform = 'translateY(0)';
     initializeMediaPicker();
+    initializeLocationPicker();
     if (deferredPrompt) {
 
         /**
@@ -118,6 +133,10 @@ function closeCreatePostModal() {
     imageContainer.style.display = 'none';
     videoPlayer.style.display = 'none';
     imagePreview.style.display = 'none';
+    locationBtn.style.display = 'inline-block';
+    locationLoader.style.display = 'none';
+    titleInput.value = '';
+    locationInput.value = '';
     stopVideo(videoPlayer);
 }
 
@@ -198,7 +217,7 @@ function onFormSubmit(event) {
     const post = [
         event.currentTarget.querySelector('#title'),
         event.currentTarget.querySelector('#location'),
-    ].reduce(function (result, element) {
+    ].reduce((result, element) => {
         const value = element.value;
         if (!value.trim()) {
             isValid = false;
@@ -240,6 +259,30 @@ if ('indexedDB' in window) {
     })
 }
 
+function getUserLocation(event) {
+    if ('geolocation' in navigator) {
+        locationBtn.style.display = 'none';
+        locationLoader.style.display = 'block';
+        navigator.geolocation.getCurrentPosition(
+            location => {
+                console.log('Users location', location);
+                locationBtn.style.display = 'inline-block';
+                locationLoader.style.display = 'none';
+                locationInput.value = 'In Lviv';
+                locationInput.parentElement.classList.add('is-focused');
+            },
+            error => {
+                console.log('Can`t select users location. ', error);
+                locationBtn.style.display = 'inline-block';
+                locationLoader.style.display = 'none';
+            },
+            {
+                timeout: 7 * 1000
+            },
+        )
+    }
+}
+
 // getDataFromCache('https://httpbin.org/get')
 //     .then(function(resp){
 //         return resp.json();
@@ -255,7 +298,14 @@ if ('indexedDB' in window) {
 //
 //     })
 //     .catch(errorHandler);
+
+function uploadImage(event) {
+    pictureBlob = event.target.files[0];
+}
+
 shareImageButton.addEventListener('click', openCreatePostModal);
 closeCreatePostModalButton.addEventListener('click', closeCreatePostModal);
 form.addEventListener('submit', onFormSubmit);
 captureBtn.addEventListener('click', onCaptureImage);
+imagePicker.addEventListener('change', uploadImage);
+locationBtn.addEventListener('click', getUserLocation);

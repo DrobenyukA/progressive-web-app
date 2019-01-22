@@ -20,7 +20,8 @@
   margin: auto;
 }
 
-#create-post #pick-image {
+#create-post #pick-image,
+#create-post #location-loader {
   display: none;
 }
 
@@ -49,7 +50,7 @@
 
 .shared-moment-card.mdl-card {
   margin: 10px auto;
-  /*width: 270px;*/
+  max-width: 300px;
   width: 80%;
 }
 
