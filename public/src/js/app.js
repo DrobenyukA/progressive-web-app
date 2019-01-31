@@ -101,7 +101,7 @@ function handleNotificationSubscription(event) {
 }
 
 if (supportServiceWorker()) {
-    navigator.serviceWorker.register('/serviceWorker.js')
+    navigator.serviceWorker.register('/service-worker.js')
         .then((event) => {
             console.log('Service worker registered successfully! ', event);
         })

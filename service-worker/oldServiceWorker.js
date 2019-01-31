@@ -1,7 +1,7 @@
 importScripts('/src/js/idb.js');
 importScripts('/src/js/dataBase.js');
 
-const VERSION = '72';
+const VERSION = '81';
 const STATIC_CACHE = 'STATIC_v-' + VERSION;
 const DYNAMIC_CACHE = 'DYNAMIC_v-' + VERSION;
 const STATIC_FILES = [
@@ -102,7 +102,7 @@ function networkFirstStrategy(event) {
 
 function cacheFirstStrategy(event) {
     /**
-     * This will work onl for browser fetching or fetch function.
+     * This will work only for browser fetching or fetch function.
      * NOTE: standard XmlHttpRequest will NOT trigger this event!
      */
     event.respondWith(
@@ -152,14 +152,12 @@ function storePost(post) {
     }).catch(error => {
         console.log('[SW] Failed to store post', error);
     });
-
 }
 
 function indexedDBStrategy(event){
     return event.respondWith(fetch(event.request).then(function(response) {
         const responseCopy = response.clone();
         responseCopy.json().then(data => {
-            console.log('Some data', data);
             if (data) {
                 Object.keys(data).forEach(keyName => storePost({
                     id: keyName,
@@ -221,61 +219,6 @@ function uploadStoredPosts(event) {
 }
 
 
-function handleConfirmAction(notification) {
-    console.log('[SW] You have successfully confirmed this action.');
-    notification.close();
-}
-
-function goToAppPage(notification) {
-    clients.matchAll()
-        .then(openedTabs => openedTabs.find(tab => tab.visibilityState === 'visible'))
-        .then(visibleTab => {
-            if (visibleTab === undefined) {
-                clients.openWindow(notification.data.url);
-            } else {
-                visibleTab.navigate(notification.data.url);
-                visibleTab.focus();
-            }
-            notification.close();
-        });
-}
-
-function handleNotificationClick (event) {
-    const notification = event.notification;
-    const action = event.action;
-
-    console.log('[SW] Notification: ', notification);
-
-    switch(action) {
-        case 'confirm': return handleConfirmAction(notification);
-        default: return event.waitUntil(goToAppPage(notification))
-    }
-
-}
-
-function handleNotificationClose(event) {
-    console.log('[SW] Notification closed!', event.notification);
-}
-
-function handlePushMessage(event) {
-    console.log('[SW] Message received:', event);
-    let data = { title: 'Hi', content: 'Something happened', openUrl: '/' };
-    if (event.data) {
-        data = JSON.parse(event.data.text())
-    }
-    const options = {
-        body: data.content,
-        icon: '/src/images/icons/app-icon-48x48.png',
-        badge: '/src/images/icons/app-icon-48x48.png',
-        data: {
-            url: data.openUrl,
-        }
-    }
-    event.waitUntil(
-        self.registration.showNotification(data.title, options),
-    )
-}
-
 self.addEventListener('install', installServiceWorker);
 
 self.addEventListener('activate', activateServiceWorker);
@@ -292,17 +235,3 @@ self.addEventListener('fetch', function (event) {
         return cacheFirstStrategy(event);
     }
 });
-
-self.addEventListener('sync', (event) => {
-    console.log('[SW] Background sync: ', event);
-    switch (event.tag) {
-        case 'store-new-post': return uploadStoredPosts(event);
-        default: return console.log('[SW] There is no correct handler for tag: ', event.tag);
-    }
-});
-
-self.addEventListener('notificationclick', handleNotificationClick);
-
-self.addEventListener('notificationclose', handleNotificationClose);
-
-self.addEventListener('push', handlePushMessage)
