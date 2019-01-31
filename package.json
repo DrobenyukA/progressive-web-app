@@ -4,7 +4,8 @@
   "description": "PWA. Building a simple Instagram clone.",
   "main": "index.js",
   "scripts": {
-    "start": "http-server -c-1 -p 3030"
+    "start": "http-server -c-1 -p 3030",
+    "generate:sw": "workbox inject:manifest"
   },
   "keywords": [
     "pwa",
@@ -15,7 +16,8 @@
   "author": "Andriy Drobenyuk",
   "license": "ISC",
   "devDependencies": {
-    "http-server": "^0.10.0"
+    "http-server": "^0.10.0",
+    "workbox-cli": "^2.1.3"
   },
   "dependencies": {}
 }

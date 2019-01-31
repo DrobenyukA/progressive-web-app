@@ -1,5 +1,5 @@
 const DB_VERSION = '1';
-const DB_NAME = 'pwaGRamDB';
+const DB_NAME = 'pwaGramDB';
 const POSTS_TABLE = 'posts';
 const SYNC_POSTS = 'sync-posts';
 
